@@ -6,6 +6,8 @@ import (
    "os/signal"
    "syscall"
    amqp "github.com/rabbitmq/amqp091-go"
+   "github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
+   "github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 )
 
 func main() {
@@ -16,7 +18,7 @@ func main() {
 	conn, err := amqp.Dial(conn_url);
 	if (err != nil) {
 
-		fmt.Printf("Error connecting to amq: %v\n");
+		fmt.Printf("Error connecting to amq: %v\n", err);
 		return;
 	}
 	defer conn.Close();
@@ -24,7 +26,19 @@ func main() {
 	chann, err_ch := conn.Channel();
 	if (err_ch != nil) {
 
-		fmt.Printf("Error connecting to amq: %v\n");
+		fmt.Printf("Error connecting to amq: %v\n", err_ch);
+		return;
+	}
+
+	ps := routing.PlayingState {
+
+		IsPaused: true,
+	};
+
+	err_pub := pubsub.PublishJSON(chann, routing.ExchangePerilDirect, routing.PauseKey, ps); 
+	if (err_pub != nil) {
+
+		fmt.Printf("Error connecting to amq: %v\n", err_pub);
 		return;
 	}
 
