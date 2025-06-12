@@ -21,6 +21,13 @@ func main() {
 	}
 	defer conn.Close();
 
+	chann, err_ch := conn.Channel();
+	if (err_ch != nil) {
+
+		fmt.Printf("Error connecting to amq: %v\n");
+		return;
+	}
+
 	fmt.Printf("Connection started\n");
 
 	sigs := make(chan os.Signal, 1)
