@@ -40,7 +40,7 @@ func DeclareAndBind(
 ) (*amqp.Channel, amqp.Queue, error) {
 
 	var queue amqp.Queue
-	var err error
+	var err_q error
 
 	chann, err_chan := conn.Channel();
 	if (err_chan != nil) {
@@ -53,10 +53,10 @@ func DeclareAndBind(
 	if (simpleQueueType == 0) {
 
 		durable = true;
-	} else if (simpleQueueType == 1 {
+	} else if (simpleQueueType == 1) {
 
 		auto_delete = true;
-		exclusive = false;
+		exclusive = true;
 	}
 
 	queue, err_q = chann.QueueDeclare(queueName, durable, auto_delete, exclusive, no_wait, nil)

@@ -1,6 +1,15 @@
 package main
 
-import "fmt"
+import ( 
+   "fmt" 
+   "os"
+   "os/signal"
+   "syscall"
+   amqp "github.com/rabbitmq/amqp091-go"
+   "github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
+   "github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
+   "github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
+)
 
 func main() {
 	fmt.Println("Starting Peril client...")
@@ -14,10 +23,18 @@ func main() {
 	}
 	defer conn.Close();
 
-	chann, err_ch := conn.Channel();
-	if (err_ch != nil) {
+	username, err_r := gamelogic.ClientWelcome(); 
+	if (err_r != nil) {
 
-		fmt.Printf("Error connecting to amq: %v\n", err_ch);
+		fmt.Printf("Error connecting to amq: %v\n", err_r);
+		return;
+	}
+	queue_name := routing.PauseKey + "." + username;
+
+	_, _, err_dec := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, queue_name, routing.PauseKey, 1); 
+	if (err_dec != nil) {
+
+		fmt.Printf("Error with Declare and bind queue %v\n", err_dec);
 		return;
 	}
 
