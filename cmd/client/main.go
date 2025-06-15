@@ -40,6 +40,57 @@ func main() {
 
 	fmt.Printf("Connection started\n");
 
+	game_state := gamelogic.NewGameState(username);
+	go func() {
+
+		for  {
+			words := gamelogic.GetInput();
+
+			switch (words[0]) {
+
+				case "spawn":
+
+					err := game_state.CommandSpawn(words);
+					if (err != nil) {
+
+						fmt.Printf("Spawned unit failed\n");
+					}
+						fmt.Printf("Spawned unit success\n");
+
+
+				case "move":
+
+					_, err := game_state.CommandMove(words);
+					if (err != nil) {
+
+						fmt.Printf("Moved unit failed\n");
+					}
+						fmt.Printf("Moved unit success\n");
+
+				case "status":
+
+					game_state.CommandStatus();
+
+				case "help":
+
+					gamelogic.PrintClientHelp();
+
+				case "spam":
+
+					fmt.Printf("Spamming not allowed yet\n");
+
+				case "quit":
+
+					gamelogic.PrintQuit();
+					return;
+
+				default:
+
+					fmt.Printf("Invalid command\n");
+			}
+		}
+	}()
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT);
 
