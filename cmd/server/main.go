@@ -26,10 +26,13 @@ func main() {
 	fmt.Printf("Connection started\n");
 	defer conn.Close();
 
-	chann, err_ch := conn.Channel();
-	if (err_ch != nil) {
+	queue_name := routing.GameLogSlug; 
+	key := routing.GameLogSlug + ".*";
+    exchange_name := routing.ExchangePerilTopic;
+	chann, _, err_dec := pubsub.DeclareAndBind(conn, exchange_name, queue_name, key, 0); 
+	if (err_dec != nil) {
 
-		fmt.Printf("Error connecting to amq: %v\n", err_ch);
+		fmt.Printf("Error with Declare and bind queue %v\n", err_dec);
 		return;
 	}
 
