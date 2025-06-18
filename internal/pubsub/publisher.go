@@ -7,6 +7,13 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type SimpleQueueType int
+
+const(
+	Durable SimpleQueueType = iota
+	Transient
+)
+
 func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 
 	json_bytes, err := json.Marshal(val);
@@ -36,7 +43,7 @@ func DeclareAndBind(
 	exchange,
 	queueName,
 	key string,
-	simpleQueueType int, // an enum to represent "durable" or "transient"
+	simpleQueueType SimpleQueueType, // an enum to represent "durable" or "transient"
 ) (*amqp.Channel, amqp.Queue, error) {
 
 	var queue amqp.Queue
@@ -50,10 +57,10 @@ func DeclareAndBind(
 
 	var durable, auto_delete, exclusive, no_wait bool;
 
-	if (simpleQueueType == 0) {
+	if (simpleQueueType == Durable) {
 
 		durable = true;
-	} else if (simpleQueueType == 1) {
+	} else if (simpleQueueType == Transient) {
 
 		auto_delete = true;
 		exclusive = true;
@@ -69,4 +76,51 @@ func DeclareAndBind(
 
 	return chann, queue, err_q;
 
+}
+
+func SubscribeJSON[T any](
+    conn *amqp.Connection,
+    exchange,
+    queueName,
+    key string,
+    queueType SimpleQueueType, // an enum to represent "durable" or "transient"
+    handler func(T),
+) error {
+
+	chann, _, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
+	if (err != nil) {
+
+		return err;
+	}
+
+	del_chan, err_cons := chann.Consume(queueName, "", false, false, false, false, nil);
+	if (err_cons != nil) {
+
+		return err_cons;
+	}
+
+	go func() {
+
+		for message := range del_chan {
+
+			var handler_param T
+			err_json := json.Unmarshal(message.Body, &handler_param);
+			if (err_json != nil) {
+
+				fmt.Printf("Error while parsing data to json %z\n", err_json);
+				continue;
+			}
+
+			handler(handler_param);
+
+			err_ack := message.Ack(false);
+			if (err_ack != nil) {
+
+				fmt.Printf("Failed to remove message %z\n", err_ack);
+				continue;
+			}
+		}
+	}()
+
+	return nil;
 }

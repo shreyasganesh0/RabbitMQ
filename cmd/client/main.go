@@ -11,6 +11,17 @@ import (
    "github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 )
 
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
+
+	return func(ps routing.PlayingState) {
+
+		defer fmt.Print(">");
+		
+		gs.HandlePause(ps);
+	}
+
+}
+
 func main() {
 	fmt.Println("Starting Peril client...")
 	conn_url := "amqp://guest:guest@localhost:5672/"
@@ -29,18 +40,20 @@ func main() {
 		fmt.Printf("Error connecting to amq: %v\n", err_r);
 		return;
 	}
-	queue_name := routing.PauseKey + "." + username;
-
-	_, _, err_dec := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, queue_name, routing.PauseKey, 1); 
-	if (err_dec != nil) {
-
-		fmt.Printf("Error with Declare and bind queue %v\n", err_dec);
-		return;
-	}
 
 	fmt.Printf("Connection started\n");
 
+	queue_name := routing.PauseKey + "." + username;
+
 	game_state := gamelogic.NewGameState(username);
+	handler_func := handlerPause(game_state);
+
+	err_sub := pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, queue_name, routing.PauseKey, pubsub.Transient, handler_func);
+	if (err_sub != nil) {
+
+		fmt.Printf("Error subscribing to queue %v\n", err_sub);
+		return;
+	}
 	go func() {
 
 		for  {
