@@ -22,6 +22,17 @@ func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
 
 }
 
+func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
+
+	return func(move gamelogic.ArmyMove) {
+
+		defer fmt.Print(">");
+		
+		gs.HandleMove(move);
+	}
+
+}
+
 func main() {
 	fmt.Println("Starting Peril client...")
 	conn_url := "amqp://guest:guest@localhost:5672/"
@@ -54,6 +65,19 @@ func main() {
 		fmt.Printf("Error subscribing to queue %v\n", err_sub);
 		return;
 	}
+
+
+	move_queue := routing.ArmyMovesPrefix + ".*"
+	move_key := routing.ArmyMovesPrefix + "." + username;
+	move_func := handlerMove(game_state);
+
+	err_sub = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, move_queue, move_key, pubsub.Transient, move_func); 
+	if (err_sub != nil) {
+
+		fmt.Printf("Error subscribing to queue %v\n", err_sub);
+		return;
+	}
+
 	go func() {
 
 		for  {
@@ -73,7 +97,23 @@ func main() {
 
 				case "move":
 
-					_, err := game_state.CommandMove(words);
+					move, err := game_state.CommandMove(words);
+					move_key := routing.ArmyMovesPrefix + "." + username;
+					chann, err_chan := conn.Channel();
+					if (err_chan != nil) {
+
+						return;
+					}
+
+					err_pub := pubsub.PublishJSON(chann, routing.ExchangePerilTopic, move_key,  move); 
+					if (err_pub != nil) {
+
+						fmt.Printf("Error connecting to amq: %v\n", err_pub);
+						return;
+					}
+
+					fmt.Printf("Published to move to topic %s", routing.ExchangePerilTopic);
+
 					if (err != nil) {
 
 						fmt.Printf("Moved unit failed\n");
