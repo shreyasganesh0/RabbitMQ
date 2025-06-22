@@ -8,10 +8,17 @@ import (
 )
 
 type SimpleQueueType int
+type AckType int
 
-const(
+const (
 	Durable SimpleQueueType = iota
 	Transient
+)
+
+const (
+	Ack AckType = iota
+	NackRequeue
+	NackDiscard
 )
 
 func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
@@ -84,7 +91,7 @@ func SubscribeJSON[T any](
     queueName,
     key string,
     queueType SimpleQueueType, // an enum to represent "durable" or "transient"
-    handler func(T),
+    handler func(T) AckType,
 ) error {
 
 	chann, _, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
@@ -111,13 +118,46 @@ func SubscribeJSON[T any](
 				continue;
 			}
 
-			handler(handler_param);
+			ack := handler(handler_param);
 
-			err_ack := message.Ack(false);
-			if (err_ack != nil) {
+			switch ack {
 
-				fmt.Printf("Failed to remove message %z\n", err_ack);
-				continue;
+				case Ack:
+
+					fmt.Printf("Ack type\n");
+					err_ack := message.Ack(false);
+					if (err_ack != nil) {
+
+						fmt.Printf("Failed to remove message %z\n", err_ack);
+						continue;
+					}
+				case NackRequeue:
+
+					fmt.Printf("Nack requeue type\n");
+					err_ack := message.Ack(false);
+					if (err_ack != nil) {
+
+						fmt.Printf("Failed to remove message %z\n", err_ack);
+						continue;
+					}
+				case NackDiscard:
+
+					fmt.Printf("Nack discard type\n");
+					err_ack := message.Nack(false, true);
+					if (err_ack != nil) {
+
+						fmt.Printf("Failed to remove message %z\n", err_ack);
+						continue;
+					}
+				default:
+
+					fmt.Printf("Invalid type\n");
+					err_ack := message.Nack(false, false);
+					if (err_ack != nil) {
+
+						fmt.Printf("Failed to remove message %z\n", err_ack);
+						continue;
+					}
 			}
 		}
 	}()
