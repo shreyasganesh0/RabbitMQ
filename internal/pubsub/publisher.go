@@ -70,10 +70,12 @@ func DeclareAndBind(
 	} else if (simpleQueueType == Transient) {
 
 		auto_delete = true;
-		exclusive = true;
 	}
 
-	queue, err_q = chann.QueueDeclare(queueName, durable, auto_delete, exclusive, no_wait, nil)
+	table := make(amqp.Table);
+	table["x-dead-letter-exchange"] = "peril_dlx";
+
+	queue, err_q = chann.QueueDeclare(queueName, durable, auto_delete, exclusive, no_wait, table); 
 	if (err_q != nil) {
 
 		return chann, queue, err_q;
