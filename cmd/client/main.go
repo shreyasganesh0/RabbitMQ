@@ -71,7 +71,7 @@ func handlerMove(gs *gamelogic.GameState, chann *amqp.Channel) func(gamelogic.Ar
 						return pubsub.NackRequeue;
 					}
 
-				return pubsub.NackRequeue;
+				return pubsub.Ack;
 
 			default:
 
