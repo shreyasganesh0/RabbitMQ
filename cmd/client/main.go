@@ -61,17 +61,18 @@ func handlerMove(gs *gamelogic.GameState, chann *amqp.Channel) func(gamelogic.Ar
 				return pubsub.NackDiscard;
 			case gamelogic.MoveOutComeSafe:
 
+				return pubsub.Ack;
+			case gamelogic.MoveOutcomeMakeWar:
 					move_key := routing.WarRecognitionsPrefix + "." + gs.GetUsername();
 					err_pub := pubsub.PublishJSON(chann, routing.ExchangePerilTopic, move_key,  move); 
 					if (err_pub != nil) {
 
 						fmt.Printf("Error connecting to amq: %v\n", err_pub);
+						return pubsub.NackRequeue;
 					}
 
 				return pubsub.NackRequeue;
-			case gamelogic.MoveOutcomeMakeWar:
 
-				return pubsub.Ack;
 			default:
 
 				return pubsub.NackDiscard;

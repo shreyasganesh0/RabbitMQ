@@ -70,6 +70,7 @@ func DeclareAndBind(
 	} else if (simpleQueueType == Transient) {
 
 		auto_delete = true;
+		exclusive = true;
 	}
 
 	table := make(amqp.Table);
@@ -136,7 +137,7 @@ func SubscribeJSON[T any](
 				case NackRequeue:
 
 					fmt.Printf("Nack requeue type\n");
-					err_ack := message.Ack(false);
+					err_ack := message.Nack(false, true);
 					if (err_ack != nil) {
 
 						fmt.Printf("Failed to remove message %z\n", err_ack);
@@ -145,7 +146,7 @@ func SubscribeJSON[T any](
 				case NackDiscard:
 
 					fmt.Printf("Nack discard type\n");
-					err_ack := message.Nack(false, true);
+					err_ack := message.Nack(false, false);
 					if (err_ack != nil) {
 
 						fmt.Printf("Failed to remove message %z\n", err_ack);
