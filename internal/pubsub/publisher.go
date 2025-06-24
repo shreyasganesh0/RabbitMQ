@@ -3,6 +3,8 @@ package pubsub
 import (
 	"fmt"
 	"encoding/json"
+	"encoding/gob"
+	"bytes"
 	"context"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -20,6 +22,34 @@ const (
 	NackRequeue
 	NackDiscard
 )
+
+
+func PublishGob[T any](ch *amqp.Channel, exchange, key string, val T) error {
+
+	var buf bytes.Buffer;
+	enc := gob.NewEncoder(&buf);
+
+	err := enc.Encode(val);
+	if (err != nil) {
+
+		fmt.Printf("Failed to marshal gob bytes %v\n", err);
+		return err;
+	}
+
+	pubbing := amqp.Publishing {
+		ContentType: "application/gob",
+		Body: buf.Bytes(),
+	};
+
+	err_pub := ch.PublishWithContext(context.Background(), exchange, key, false, false, pubbing);
+	if (err_pub != nil) {
+
+		return err_pub;
+	}
+
+	return nil;
+
+}
 
 func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 

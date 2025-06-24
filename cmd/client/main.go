@@ -3,6 +3,7 @@ package main
 import ( 
    "fmt" 
    "os"
+   "time"
    "os/signal"
    "syscall"
    amqp "github.com/rabbitmq/amqp091-go"
@@ -11,20 +12,60 @@ import (
    "github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 )
 
-func handlerWar(gs *gamelogic.GameState) func(dw gamelogic.RecognitionOfWar) pubsub.AckType {
+func handlerWar(gs *gamelogic.GameState, chann *amqp.Channel) func(dw gamelogic.RecognitionOfWar) pubsub.AckType {
 	return func(dw gamelogic.RecognitionOfWar) pubsub.AckType {
+
+		username := gs.GetUsername()
+		game_key := routing.GameLogSlug + "." + username 
+
 		defer fmt.Print("> ")
-		warOutcome, _, _ := gs.HandleWar(dw)
+
+		warOutcome, winner, loser := gs.HandleWar(dw)
+		game_log := routing.GameLog {
+						CurrentTime: time.Now(),
+						Message: fmt.Sprintf("%s won a war against %s/n", winner, loser),  
+						Username: username, 
+					}
 		switch warOutcome {
+
 		case gamelogic.WarOutcomeNotInvolved:
 			return pubsub.NackRequeue
+
 		case gamelogic.WarOutcomeNoUnits:
 			return pubsub.NackDiscard
+
 		case gamelogic.WarOutcomeOpponentWon:
+
+			err_pub := pubsub.PublishGob(chann, routing.ExchangePerilTopic, game_key, game_log); 
+			if (err_pub != nil) {
+
+				fmt.Printf("Error connecting to amq: %v\n", err_pub);
+				return pubsub.NackRequeue;
+			}
+
 			return pubsub.Ack
+
 		case gamelogic.WarOutcomeYouWon:
+
+							
+			err_pub := pubsub.PublishGob(chann, routing.ExchangePerilTopic, game_key, game_log); 
+			if (err_pub != nil) {
+
+				fmt.Printf("Error connecting to amq: %v\n", err_pub);
+				return pubsub.NackRequeue;
+			}
+
 			return pubsub.Ack
+
 		case gamelogic.WarOutcomeDraw:
+
+			game_log.Message = fmt.Sprintf("A war between %s and %s resulted in a draw\n", winner, loser);
+			err_pub := pubsub.PublishGob(chann, routing.ExchangePerilTopic, game_key, game_log); 
+			if (err_pub != nil) {
+
+				fmt.Printf("Error connecting to amq: %v\n", err_pub);
+				return pubsub.NackRequeue;
+			}
 			return pubsub.Ack
 		}
 
@@ -129,7 +170,7 @@ func main() {
 		routing.WarRecognitionsPrefix,
 		routing.WarRecognitionsPrefix+".*",
 		pubsub.Durable,
-		handlerWar(game_state),
+		handlerWar(game_state, chann),
 	)
 	if err != nil {
 		fmt.Printf("could not subscribe to war declarations: %v", err)
