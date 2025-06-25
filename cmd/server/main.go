@@ -11,6 +11,23 @@ import (
    "github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 )
 
+func handlerLog() func(routing.GameLog) pubsub.AckType {
+
+	return func(gl routing.GameLog) pubsub.AckType {
+
+		defer fmt.Print(">");
+		
+		err := gamelogic.WriteLog(gl);
+		if (err != nil) {
+
+			return pubsub.NackRequeue;
+		}
+
+		return pubsub.Ack;
+	}
+
+}
+
 func main() {
 	fmt.Println("Starting Peril server...")
 	gamelogic.PrintServerHelp();
@@ -38,6 +55,17 @@ func main() {
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT);
+	err = pubsub.SubscribeGob(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		"*",	
+		pubsub.Durable,
+		handlerLog(),
+	)
+	if err != nil {
+		fmt.Printf("could not subscribe to army moves: %v", err)
+	}
 
 	go func() {
 		for {

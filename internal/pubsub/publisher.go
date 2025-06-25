@@ -118,6 +118,89 @@ func DeclareAndBind(
 
 }
 
+func SubscribeGob[T any](
+    conn *amqp.Connection,
+    exchange,
+    queueName,
+    key string,
+    queueType SimpleQueueType, // an enum to represent "durable" or "transient"
+    handler func(T) AckType,
+) error {
+
+	chann, _, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
+	if (err != nil) {
+
+		return err;
+	}
+
+	del_chan, err_cons := chann.Consume(queueName, "", false, false, false, false, nil);
+	if (err_cons != nil) {
+
+		return err_cons;
+	}
+
+	go func() {
+
+		for message := range del_chan {
+
+			var handler_param T
+			buf := bytes.NewBuffer(message.Body);
+
+			dec := gob.NewDecoder(buf);
+			err_gob := dec.Decode(&handler_param);
+			if (err_gob != nil) {
+
+				fmt.Printf("Error while parsing data to gob %z\n", err_gob);
+				continue;
+			}
+
+			ack := handler(handler_param);
+
+			switch ack {
+
+				case Ack:
+
+					fmt.Printf("Ack type\n");
+					err_ack := message.Ack(false);
+					if (err_ack != nil) {
+
+						fmt.Printf("Failed to remove message %z\n", err_ack);
+						continue;
+					}
+				case NackRequeue:
+
+					fmt.Printf("Nack requeue type\n");
+					err_ack := message.Nack(false, true);
+					if (err_ack != nil) {
+
+						fmt.Printf("Failed to remove message %z\n", err_ack);
+						continue;
+					}
+				case NackDiscard:
+
+					fmt.Printf("Nack discard type\n");
+					err_ack := message.Nack(false, false);
+					if (err_ack != nil) {
+
+						fmt.Printf("Failed to remove message %z\n", err_ack);
+						continue;
+					}
+				default:
+
+					fmt.Printf("Invalid type\n");
+					err_ack := message.Nack(false, false);
+					if (err_ack != nil) {
+
+						fmt.Printf("Failed to remove message %z\n", err_ack);
+						continue;
+					}
+			}
+		}
+	}()
+
+	return nil;
+}
+
 func SubscribeJSON[T any](
     conn *amqp.Connection,
     exchange,
