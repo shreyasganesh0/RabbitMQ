@@ -18,6 +18,8 @@ func handlerWar(gs *gamelogic.GameState, chann *amqp.Channel) func(dw gamelogic.
 		username := gs.GetUsername()
 		game_key := routing.GameLogSlug + "." + username 
 
+		fmt.Printf("My user is %s and warring user is %s and %s\n", username, dw.Attacker.Username, dw.Defender.Username)
+
 		defer fmt.Print("> ")
 
 		warOutcome, winner, loser := gs.HandleWar(dw)
@@ -36,7 +38,10 @@ func handlerWar(gs *gamelogic.GameState, chann *amqp.Channel) func(dw gamelogic.
 
 		case gamelogic.WarOutcomeOpponentWon:
 
-			err_pub := pubsub.PublishGob(chann, routing.ExchangePerilTopic, game_key, game_log); 
+			err_pub := pubsub.PublishGob(chann, 
+										routing.ExchangePerilTopic, 
+										game_key, 
+										game_log); 
 			if (err_pub != nil) {
 
 				fmt.Printf("Error connecting to amq: %v\n", err_pub);
@@ -48,7 +53,10 @@ func handlerWar(gs *gamelogic.GameState, chann *amqp.Channel) func(dw gamelogic.
 		case gamelogic.WarOutcomeYouWon:
 
 							
-			err_pub := pubsub.PublishGob(chann, routing.ExchangePerilTopic, game_key, game_log); 
+			err_pub := pubsub.PublishGob(chann, 
+										routing.ExchangePerilTopic, 
+										game_key, 
+										game_log); 
 			if (err_pub != nil) {
 
 				fmt.Printf("Error connecting to amq: %v\n", err_pub);
@@ -59,8 +67,13 @@ func handlerWar(gs *gamelogic.GameState, chann *amqp.Channel) func(dw gamelogic.
 
 		case gamelogic.WarOutcomeDraw:
 
-			game_log.Message = fmt.Sprintf("A war between %s and %s resulted in a draw\n", winner, loser);
-			err_pub := pubsub.PublishGob(chann, routing.ExchangePerilTopic, game_key, game_log); 
+			game_log.Message = fmt.Sprintf("A war between %s and %s resulted in a draw\n", 
+											winner, loser);
+
+			err_pub := pubsub.PublishGob(chann, 
+										routing.ExchangePerilTopic, 
+										game_key, 
+										game_log); 
 			if (err_pub != nil) {
 
 				fmt.Printf("Error connecting to amq: %v\n", err_pub);
@@ -104,8 +117,16 @@ func handlerMove(gs *gamelogic.GameState, chann *amqp.Channel) func(gamelogic.Ar
 
 				return pubsub.Ack;
 			case gamelogic.MoveOutcomeMakeWar:
-					move_key := routing.WarRecognitionsPrefix + "." + gs.GetUsername();
-					err_pub := pubsub.PublishJSON(chann, routing.ExchangePerilTopic, move_key,  move); 
+
+					err_pub := pubsub.PublishJSON(
+										chann,	
+										routing.ExchangePerilTopic,
+										routing.WarRecognitionsPrefix+"."+gs.GetUsername(),
+										gamelogic.RecognitionOfWar{
+											Attacker: move.Player,
+											Defender: gs.GetPlayerSnap(),
+										},
+									)
 					if (err_pub != nil) {
 
 						fmt.Printf("Error connecting to amq: %v\n", err_pub);
