@@ -6,11 +6,17 @@ import (
    "time"
    "os/signal"
    "syscall"
+   "strconv"
    amqp "github.com/rabbitmq/amqp091-go"
    "github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
    "github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
    "github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 )
+
+type MalLog struct {
+
+	Log string
+}
 
 func handlerWar(gs *gamelogic.GameState, chann *amqp.Channel) func(dw gamelogic.RecognitionOfWar) pubsub.AckType {
 	return func(dw gamelogic.RecognitionOfWar) pubsub.AckType {
@@ -255,7 +261,33 @@ func main() {
 
 				case "spam":
 
-					fmt.Printf("Spamming not allowed yet\n");
+					spam_count, err := strconv.Atoi(words[1])
+					if (err != nil) {
+
+						fmt.Printf("Failed to write spam due to %z", err);
+						continue;
+					}
+
+					for i := 0; i < spam_count; i++ {
+
+					game_log := routing.GameLog {
+									CurrentTime: time.Now(),
+									Message: gamelogic.GetMaliciousLog(), 
+									Username: username, 
+								}
+						err_pub := pubsub.PublishGob(
+											chann,	
+											routing.ExchangePerilTopic,
+											routing.GameLogSlug+"."+ username,
+											game_log,
+										)
+						if (err_pub != nil) {
+
+							fmt.Printf("Error connecting to amq: %v\n", err_pub);
+						}
+					}
+
+					return; 
 
 				case "quit":
 

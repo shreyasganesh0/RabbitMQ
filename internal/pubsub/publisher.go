@@ -133,6 +133,12 @@ func SubscribeGob[T any](
 		return err;
 	}
 
+	err_qos := chann.Qos(10, 0, true);
+	if (err_qos != nil) {
+
+		return err_qos;
+	}
+
 	del_chan, err_cons := chann.Consume(queueName, "", false, false, false, false, nil);
 	if (err_cons != nil) {
 
